@@ -5,7 +5,13 @@ use std::{
     path::Path,
 };
 use glob::glob;
+use clap::Parser;
 
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Args {
+    patterns: Vec<String>,
+}
 
 fn read_file(path: &Path) -> String {
     let mut f = File::open(path).expect("File not found");
@@ -35,17 +41,12 @@ fn print_code(relative_path: &str, code: String) {
 
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    if args.len() < 2 {
-        eprintln!("Usage: {} <glob> [glob...]", args[0]);
-        return;
-    }
-
-    let patterns = &args[1..];
+    let patterns = args.patterns;
 
     for pattern in patterns {
-        match glob(pattern) {
+        match glob(&pattern) {
             Ok(paths) => {
                 for result in paths {
                     match result {
