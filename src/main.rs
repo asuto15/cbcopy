@@ -47,7 +47,6 @@ fn print_code(relative_path: &str, code: String) {
     println!();
 }
 
-
 fn main() {
     let args = Args::parse();
 
@@ -71,9 +70,13 @@ fn main() {
             let code = read_file(&path);
             print_code(&path_to_display, code);
         } else if path.is_dir() {
-            eprintln!("{} is a directory", file_name);
+            eprintln!("Warning: {} is a directory", file_name);
+        } else if path.is_symlink() {
+            eprintln!("Warning: {} is a symlink", file_name);
+        } else if path.exists() {
+            eprintln!("Warning: {} is not a file", file_name);
         } else {
-            eprintln!("{} is not a file", file_name);
+            eprintln!("Warning: {} does not exist", file_name);
         }
     }
 
