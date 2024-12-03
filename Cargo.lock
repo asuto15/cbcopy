@@ -52,7 +52,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cdcopy"
+name = "cbcopy"
 version = "0.1.0"
 dependencies = [
  "clap",
