@@ -1,10 +1,5 @@
-use std::{
-    env,
-    fs::File,
-    io::prelude::*,
-    path::Path,
-};
 use clap::Parser;
+use std::{env, fs::File, io::prelude::*, path::Path};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -25,16 +20,20 @@ fn read_file(path: &Path) -> String {
 }
 
 fn get_relative_path(path: &Path) -> String {
-    let absolute_path = path.canonicalize().expect("Failed to resolve absolute path");
+    let absolute_path = path
+        .canonicalize()
+        .expect("Failed to resolve absolute path");
     let current_dir = env::current_dir().expect("Failed to get current directory");
-    absolute_path.strip_prefix(&current_dir)
+    absolute_path
+        .strip_prefix(&current_dir)
         .unwrap_or(&absolute_path)
         .to_string_lossy()
         .to_string()
 }
 
 fn get_absolute_path(path: &Path) -> String {
-    path.canonicalize().expect("Failed to resolve absolute path")
+    path.canonicalize()
+        .expect("Failed to resolve absolute path")
         .to_string_lossy()
         .to_string()
 }
@@ -60,12 +59,8 @@ fn main() {
         if path.is_file() {
             found_any_file = true;
             let path_to_display = match is_absolute {
-                true => {
-                    get_absolute_path(&path)
-                },
-                false => {
-                    get_relative_path(&path)
-                }
+                true => get_absolute_path(&path),
+                false => get_relative_path(&path),
             };
             let code = read_file(&path);
             print_code(&path_to_display, code);
@@ -81,6 +76,9 @@ fn main() {
     }
 
     if !found_any_file {
-        eprintln!("Error: No valid files found among the arguments '{}'", file_names.join("', '"));
+        eprintln!(
+            "Error: No valid files found among the arguments '{}'",
+            file_names.join("', '")
+        );
     }
 }
