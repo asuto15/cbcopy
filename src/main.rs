@@ -38,9 +38,9 @@ fn get_absolute_path(path: &Path) -> String {
         .to_string()
 }
 
-fn print_code(relative_path: &str, code: String) {
+fn print_code(path: &str, code: String) {
     println!("```");
-    println!("// {}", relative_path);
+    println!("// {}", path);
     print!("{}", code);
     println!("```");
     println!();
@@ -53,6 +53,7 @@ fn main() {
     let mut found_any_file = false;
     let file_names = args.file_paths;
 
+    let mut printed_files = Vec::new();
     for file_name in &file_names {
         let path = Path::new(&file_name);
 
@@ -62,6 +63,7 @@ fn main() {
                 true => get_absolute_path(&path),
                 false => get_relative_path(&path),
             };
+            printed_files.push(path_to_display.clone());
             let code = read_file(&path);
             print_code(&path_to_display, code);
         } else if path.is_dir() {
@@ -73,6 +75,11 @@ fn main() {
         } else {
             eprintln!("Warning: {} does not exist", file_name);
         }
+    }
+
+    eprintln!("Printed files:");
+    for printed_file in printed_files {
+        eprintln!("{}", printed_file);
     }
 
     if !found_any_file {
