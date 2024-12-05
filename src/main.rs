@@ -77,9 +77,13 @@ fn main() {
         }
     }
 
-    eprintln!("Printed files:");
-    for printed_file in printed_files {
-        eprintln!("{}", printed_file);
+    if printed_files.is_empty() {
+        eprintln!("Printed files: None");
+    } else {
+        eprintln!("Printed files:");
+        for printed_file in printed_files {
+            eprintln!("{}", printed_file);
+        }
     }
 
     if !found_any_file {
