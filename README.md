@@ -10,6 +10,7 @@ This command outputs the contents of specified files in Markdown code block form
 - Outputs the contents of specified files in Markdown code block format.
 - Allows users to choose between relative or absolute paths for the output.
 - Provides warnings for non-existent files, directories, or symbolic links.
+- Excludes the paths from the Output files with command line option.
 
 ---
 
@@ -22,6 +23,7 @@ This command outputs the contents of specified files in Markdown code block form
 ### Options
 
 - `-a`, `--absolute`: Display absolute paths in the output (default is relative paths).
+- `-e`, `--exclude` `<EXCLUDE>`: Exclude the paths from the outputs.
 
 ### Arguments
 
@@ -71,6 +73,13 @@ fn main() {
 You can specify multiple files to process them sequentially:
 
 `cbcopy src/main.rs src/lib.rs`
+
+
+### Exclude paths from outputs
+
+You can select excluded paths not to copy specific files:
+
+`cbcopy src/main.rs -e src/lib.rs`
 
 ---
 
