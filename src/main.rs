@@ -1,5 +1,10 @@
 use clap::Parser;
-use std::{env, fs::File, io::{self, prelude::*}, path::{Path, PathBuf}};
+use std::{
+    env,
+    fs::File,
+    io::{self, prelude::*},
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -52,7 +57,11 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
 
     let is_absolute = args.absolute;
-    let exclude_patterns: Vec<PathBuf> = args.exclude.iter().map(|p| resolve_exclude_pattern(p)).collect();
+    let exclude_patterns: Vec<PathBuf> = args
+        .exclude
+        .iter()
+        .map(|p| resolve_exclude_pattern(p))
+        .collect();
     let mut found_any_file = false;
     let file_names = args.file_paths;
 
@@ -68,9 +77,11 @@ fn main() -> io::Result<()> {
         };
 
         if !exclude_patterns.is_empty()
-            && exclude_patterns
-                .iter()
-                .any(|pat| canonical.to_string_lossy().contains(&*pat.to_string_lossy()))
+            && exclude_patterns.iter().any(|pat| {
+                canonical
+                    .to_string_lossy()
+                    .contains(&*pat.to_string_lossy())
+            })
         {
             excluded_files.push(display_path);
             continue;
