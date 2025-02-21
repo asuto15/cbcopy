@@ -60,11 +60,15 @@ fn main() {
     let mut printed_files = Vec::new();
     let mut excluded_files = Vec::new();
     for file_name in &file_names {
+        let path = Path::new(&file_name);
         if !exclude_patterns.is_empty() && exclude_patterns.iter().any(|pattern| file_name.contains(pattern)) {
-            excluded_files.push(file_name);
+            let path_to_display = match is_absolute {
+                true => get_absolute_path(&path),
+                false => get_relative_path(&path),
+            };
+            excluded_files.push(path_to_display.clone());
             continue;
         }
-        let path = Path::new(&file_name);
 
         if path.is_file() {
             found_any_file = true;
