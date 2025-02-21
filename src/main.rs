@@ -22,23 +22,19 @@ fn read_file(path: &Path) -> String {
     contents
 }
 
-fn get_relative_path(path: &Path) -> String {
+fn get_relative_path(path: &Path) -> std::io::Result<String> {
     let absolute_path = path
-        .canonicalize()
-        .expect("Failed to resolve absolute path");
-    let current_dir = env::current_dir().expect("Failed to get current directory");
-    absolute_path
+        .canonicalize()?;
+    let current_dir = env::current_dir()?;
+    Ok(absolute_path
         .strip_prefix(&current_dir)
         .unwrap_or(&absolute_path)
         .to_string_lossy()
-        .to_string()
+        .to_string())
 }
 
-fn get_absolute_path(path: &Path) -> String {
-    path.canonicalize()
-        .expect("Failed to resolve absolute path")
-        .to_string_lossy()
-        .to_string()
+fn get_absolute_path(path: &Path) -> std::io::Result<String> {
+    Ok(path.canonicalize()?.to_string_lossy().to_string())
 }
 
 fn print_code(path: &str, code: String) {
@@ -49,7 +45,7 @@ fn print_code(path: &str, code: String) {
     println!();
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     let is_absolute = args.absolute;
@@ -61,10 +57,17 @@ fn main() {
     let mut excluded_files = Vec::new();
     for file_name in &file_names {
         let path = Path::new(&file_name);
-        if !exclude_patterns.is_empty() && exclude_patterns.iter().any(|pattern| file_name.contains(pattern)) {
-            let path_to_display = match is_absolute {
-                true => get_absolute_path(&path),
-                false => get_relative_path(&path),
+
+        let abs_path_str = match get_absolute_path(&path) {
+            Ok(s) => s,
+            Err(_) => file_name.to_string(),
+        };
+
+        if !exclude_patterns.is_empty() && exclude_patterns.iter().any(|pattern| abs_path_str.contains(pattern)) {
+            let path_to_display = if is_absolute {
+                get_absolute_path(&path)?
+            } else {
+                get_relative_path(&path)?
             };
             excluded_files.push(path_to_display.clone());
             continue;
@@ -72,9 +75,10 @@ fn main() {
 
         if path.is_file() {
             found_any_file = true;
-            let path_to_display = match is_absolute {
-                true => get_absolute_path(&path),
-                false => get_relative_path(&path),
+            let path_to_display = if is_absolute {
+                get_absolute_path(&path)?
+            } else {
+                get_relative_path(&path)?
             };
             printed_files.push(path_to_display.clone());
             let code = read_file(&path);
@@ -111,4 +115,6 @@ fn main() {
             file_names.join("', '")
         );
     }
+
+    Ok(())
 }
