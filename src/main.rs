@@ -8,6 +8,9 @@ struct Args {
 
     #[arg(short, long, default_value = "false")]
     absolute: bool,
+
+    #[arg(short, long)]
+    exclude: Vec<String>,
 }
 
 fn read_file(path: &Path) -> String {
@@ -50,11 +53,17 @@ fn main() {
     let args = Args::parse();
 
     let is_absolute = args.absolute;
+    let exclude_patterns = args.exclude;
     let mut found_any_file = false;
     let file_names = args.file_paths;
 
     let mut printed_files = Vec::new();
+    let mut excluded_files = Vec::new();
     for file_name in &file_names {
+        if !exclude_patterns.is_empty() && exclude_patterns.iter().any(|pattern| file_name.contains(pattern)) {
+            excluded_files.push(file_name);
+            continue;
+        }
         let path = Path::new(&file_name);
 
         if path.is_file() {
@@ -74,6 +83,12 @@ fn main() {
             eprintln!("Warning: {} is not a file", file_name);
         } else {
             eprintln!("Warning: {} does not exist", file_name);
+        }
+    }
+    if !excluded_files.is_empty() {
+        eprintln!("Excluded files:");
+        for excluded_file in excluded_files {
+            eprintln!("{}", excluded_file);
         }
     }
 
