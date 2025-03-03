@@ -1,42 +1,43 @@
 use clap::Parser;
 use std::{
-    env,
-    fs::File,
-    io::{self, prelude::*},
+    env, fs, io,
     path::{Path, PathBuf},
 };
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
-    file_paths: Vec<String>,
+    file_paths: Vec<PathBuf>,
 
-    #[arg(short, long, default_value = "false")]
+    #[arg(short, long, default_value_t = false)]
     absolute: bool,
 
-    #[arg(short, long, default_value = "false")]
+    #[arg(short, long, default_value_t = false)]
     recursive: bool,
 
     #[arg(short, long)]
-    exclude: Vec<String>,
+    exclude: Vec<PathBuf>,
 }
 
 fn resolve_path(path: &Path) -> PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
-fn resolve_exclude_pattern(pattern: &str) -> PathBuf {
-    let p = Path::new(pattern);
-    p.canonicalize().unwrap_or_else(|_| {
-        let current_dir = env::current_dir().unwrap();
-        current_dir.join(p)
-    })
+fn resolve_exclude_pattern(pattern: &Path) -> PathBuf {
+    pattern
+        .canonicalize()
+        .unwrap_or_else(|_| env::current_dir().unwrap().join(pattern))
+}
+
+fn is_excluded(path: &Path, exclude_patterns: &[PathBuf]) -> bool {
+    let path_str = path.to_string_lossy();
+    exclude_patterns
+        .iter()
+        .any(|pat| path_str.contains(&*pat.to_string_lossy()))
 }
 
 fn read_file(path: &Path) -> io::Result<Option<String>> {
-    let mut f = File::open(path)?;
-    let mut bytes = Vec::new();
-    f.read_to_end(&mut bytes)?;
+    let bytes = fs::read(path)?;
     match std::str::from_utf8(&bytes) {
         Ok(s) => Ok(Some(s.to_string())),
         Err(_) => Ok(None),
@@ -74,13 +75,40 @@ fn collect_files(path: &Path, exclude_patterns: &[PathBuf]) -> io::Result<Vec<Pa
     if canonical.is_file() {
         files.push(canonical);
     } else if canonical.is_dir() {
-        for entry in std::fs::read_dir(path)? {
+        for entry in fs::read_dir(path)? {
             let entry = entry?;
             let entry_path = entry.path();
             files.extend(collect_files(&entry_path, exclude_patterns)?);
         }
     }
     Ok(files)
+}
+
+fn process_file(path: &Path, is_absolute: bool) -> io::Result<Option<PathBuf>> {
+    let canonical = resolve_path(path);
+    if !canonical.exists() {
+        eprintln!("Warning: {} does not exist", path.display());
+        return Ok(None);
+    }
+    let display_path = if is_absolute {
+        canonical.clone()
+    } else {
+        get_relative_path(&canonical)
+    };
+
+    match read_file(&canonical)? {
+        Some(code) => {
+            print_code(&display_path, &code);
+            Ok(Some(display_path))
+        }
+        None => {
+            eprintln!(
+                "Warning: {} is not a text file, skipping.",
+                display_path.display()
+            );
+            Ok(None)
+        }
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -92,99 +120,53 @@ fn main() -> io::Result<()> {
         .iter()
         .map(|p| resolve_exclude_pattern(p))
         .collect();
-    let mut found_any_file = false;
-    let file_names = args.file_paths;
 
+    let mut found_any_file = false;
     let mut printed_files = Vec::new();
     let mut excluded_files = Vec::new();
-    for file_name in &file_names {
-        let path = Path::new(file_name);
+
+    for path in &args.file_paths {
         if path.is_dir() {
             if !args.recursive {
                 eprintln!(
                     "Warning: {} is a directory (use --recursive to process directories)",
-                    file_name
+                    path.display()
                 );
                 continue;
             }
             let files_to_process = collect_files(path, &exclude_patterns)?;
-            for canonical in files_to_process {
+            for file in files_to_process {
+                if let Some(display_path) = process_file(&file, is_absolute)? {
+                    printed_files.push(display_path);
+                    found_any_file = true;
+                }
+            }
+        } else if path.is_file() {
+            let canonical = resolve_path(path);
+            if !exclude_patterns.is_empty() && is_excluded(&canonical, &exclude_patterns) {
                 let display_path = if is_absolute {
                     canonical.clone()
                 } else {
                     get_relative_path(&canonical)
                 };
-                match read_file(&canonical)? {
-                    Some(code) => {
-                        found_any_file = true;
-                        printed_files.push(display_path.clone());
-                        print_code(&display_path, &code);
-                    }
-                    None => {
-                        eprintln!(
-                            "Warning: {} is not a text file, skipping.",
-                            display_path.display()
-                        );
-                        continue;
-                    }
-                }
+                excluded_files.push(display_path);
+                continue;
             }
-            continue;
-        }
-
-        let canonical = resolve_path(path);
-        let canonical_str = canonical.to_string_lossy();
-        if !exclude_patterns.is_empty()
-            && exclude_patterns
-                .iter()
-                .any(|pat| canonical_str.contains(&*pat.to_string_lossy()))
-        {
-            let display_path = if is_absolute {
-                canonical.clone()
-            } else {
-                get_relative_path(&canonical)
-            };
-            excluded_files.push(display_path);
-            continue;
-        }
-
-        if !path.exists() {
-            eprintln!("Warning: {} does not exist", file_name);
-            continue;
-        }
-
-        if path.is_file() {
-            let display_path = if is_absolute {
-                canonical.clone()
-            } else {
-                get_relative_path(&canonical)
-            };
-            match read_file(&canonical)? {
-                Some(code) => {
-                    found_any_file = true;
-                    printed_files.push(display_path.clone());
-                    print_code(&display_path, &code);
-                }
-                None => {
-                    eprintln!(
-                        "Warning: {} is not a text file, skipping.",
-                        display_path.display()
-                    );
-                    continue;
-                }
+            if let Some(display_path) = process_file(path, is_absolute)? {
+                printed_files.push(display_path);
+                found_any_file = true;
             }
-            continue;
+        } else if path.is_symlink() {
+            eprintln!("Warning: {} is a symlink", path.display());
+        } else {
+            eprintln!("Warning: {} is not a file", path.display());
         }
-        if path.is_symlink() {
-            eprintln!("Warning: {} is a symlink", file_name);
-            continue;
-        }
-        eprintln!("Warning: {} is not a file", file_name);
     }
+
     if !excluded_files.is_empty() {
         eprintln!("Excluded files:");
-        for excluded_file in excluded_files {
-            eprintln!("{}", excluded_file.display());
+        for file in excluded_files {
+            eprintln!("{}", file.display());
         }
     }
 
@@ -192,15 +174,21 @@ fn main() -> io::Result<()> {
         eprintln!("Printed files: None");
     } else {
         eprintln!("Printed files:");
-        for printed_file in printed_files {
-            eprintln!("{}", printed_file.display());
+        for file in printed_files {
+            eprintln!("{}", file.display());
         }
     }
 
     if !found_any_file {
+        let file_list = args
+            .file_paths
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>()
+            .join("', '");
         eprintln!(
             "Error: No valid files found among the arguments '{}'",
-            file_names.join("', '")
+            file_list
         );
     }
 
