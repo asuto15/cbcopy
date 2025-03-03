@@ -64,7 +64,10 @@ fn collect_files(path: &Path, exclude_patterns: &[PathBuf]) -> io::Result<Vec<Pa
     let canonical = resolve_path(path);
     let canonical_str = canonical.to_string_lossy();
 
-    if exclude_patterns.iter().any(|pat| canonical_str.contains(&*pat.to_string_lossy())) {
+    if exclude_patterns
+        .iter()
+        .any(|pat| canonical_str.contains(&*pat.to_string_lossy()))
+    {
         return Ok(files);
     }
 
@@ -116,7 +119,7 @@ fn main() -> io::Result<()> {
                         found_any_file = true;
                         printed_files.push(display_path.clone());
                         print_code(&display_path, &code);
-                    },
+                    }
                     None => {
                         eprintln!(
                             "Warning: {} is not a text file, skipping.",
@@ -161,9 +164,12 @@ fn main() -> io::Result<()> {
                     found_any_file = true;
                     printed_files.push(display_path.clone());
                     print_code(&display_path, &code);
-                },
+                }
                 None => {
-                    eprintln!("Warning: {} is not a text file, skipping.", display_path.display());
+                    eprintln!(
+                        "Warning: {} is not a text file, skipping.",
+                        display_path.display()
+                    );
                     continue;
                 }
             }
