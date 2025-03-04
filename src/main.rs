@@ -53,8 +53,7 @@ fn get_relative_path(canonical: &Path) -> PathBuf {
 }
 
 fn print_code(path: &Path, code: &str) {
-    println!("```");
-    println!("// {}", path.display());
+    println!("```{}", path.display());
     print!("{}", code);
     println!("```");
     println!();
