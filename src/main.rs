@@ -52,8 +52,40 @@ fn get_relative_path(canonical: &Path) -> PathBuf {
         .unwrap_or_else(|_| canonical.to_path_buf())
 }
 
+fn detect_language(path: &Path) -> Option<&'static str> {
+    match path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase().as_str() {
+        "rs" => Some("rust"),
+        "py" => Some("python"),
+        "js" => Some("javascript"),
+        "ts" => Some("typescript"),
+        "c" | "h" => Some("c"),
+        "cpp" | "c++" | "cc" | "cp" | "cxx" | "hpp" | "h++" | "hh" | "hxx" => Some("cpp"),
+        "cs" => Some("csharp"),
+        "go" => Some("go"),
+        "rb" => Some("ruby"),
+        "java" => Some("java"),
+        "kt" => Some("kotlin"),
+        "php" => Some("php"),
+        "swift" => Some("swift"),
+        "dart" => Some("dart"),
+        "jl" => Some("julia"),
+        "sql" => Some("sql"),
+        "sh" => Some("bash"),
+        "html" | "htm" => Some("html"),
+        "css" => Some("css"),
+        "json" => Some("json"),
+        "xml" => Some("xml"),
+        "yaml" | "yml" => Some("yaml"),
+        "md" => Some("markdown"),
+        "tex" => Some("latex"),
+        "vim" => Some("vim"),
+        _ => None,
+    }
+}
+
 fn print_code(path: &Path, code: &str) {
-    println!("```{}", path.display());
+    let language = detect_language(path).unwrap_or("plaintext");
+    println!("```{}:{}", language, path.display());
     print!("{}", code);
     println!("```");
     println!();
