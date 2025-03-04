@@ -23,6 +23,7 @@ This command outputs the contents of specified files in Markdown code block form
 ### Options
 
 - `-a`, `--absolute`: Display absolute paths in the output (default is relative paths).
+- `-r`, `--recursive`: Search files from directories recursively.
 - `-e`, `--exclude` `<EXCLUDE>`: Exclude the paths from the outputs.
 
 ### Arguments
@@ -67,7 +68,6 @@ fn main() {
 ```
 ``````
 
-
 ### Process multiple files
 
 You can specify multiple files to process them sequentially:
@@ -80,6 +80,12 @@ You can specify multiple files to process them sequentially:
 You can select excluded paths not to copy specific files:
 
 `cbcopy src/main.rs -e src/lib.rs`
+
+### Process all files in folder
+
+You can select all files in the folder:
+
+`cbcopy -r src`
 
 ---
 
