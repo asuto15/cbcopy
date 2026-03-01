@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::{
     env, fs, io,
+    collections::BTreeMap,
     path::{Path, PathBuf},
 };
 
@@ -142,6 +143,84 @@ fn process_file(path: &Path, is_absolute: bool) -> io::Result<Option<PathBuf>> {
     }
 }
 
+#[derive(Default)]
+struct TreeNode {
+    children: BTreeMap<String, TreeNode>,
+    is_file: bool,
+}
+
+fn path_components(path: &Path) -> Vec<String> {
+    use std::path::Component;
+
+    let mut components = Vec::new();
+    for comp in path.components() {
+        let part = match comp {
+            Component::RootDir => "/".to_string(),
+            Component::Prefix(prefix) => prefix.as_os_str().to_string_lossy().to_string(),
+            Component::CurDir => ".".to_string(),
+            Component::ParentDir => "..".to_string(),
+            Component::Normal(name) => name.to_string_lossy().to_string(),
+        };
+        components.push(part);
+    }
+    components
+}
+
+fn build_tree(paths: &[PathBuf]) -> TreeNode {
+    let mut root = TreeNode::default();
+    for path in paths {
+        let parts = path_components(path);
+        if parts.is_empty() {
+            continue;
+        }
+        let mut node = &mut root;
+        for (idx, part) in parts.iter().enumerate() {
+            let is_last = idx + 1 == parts.len();
+            node = node.children.entry(part.clone()).or_default();
+            if is_last {
+                node.is_file = true;
+            }
+        }
+    }
+    root
+}
+
+fn render_tree(node: &TreeNode, prefix: &str, lines: &mut Vec<String>) {
+    let total = node.children.len();
+    for (idx, (name, child)) in node.children.iter().enumerate() {
+        let is_last = idx + 1 == total;
+        let connector = if is_last { "└── " } else { "├── " };
+        lines.push(format!("{}{}{}", prefix, connector, name));
+        let next_prefix = if is_last {
+            format!("{}    ", prefix)
+        } else {
+            format!("{}│   ", prefix)
+        };
+        if !child.children.is_empty() {
+            render_tree(child, &next_prefix, lines);
+        }
+    }
+}
+
+fn tree_lines(paths: &[PathBuf], is_absolute: bool) -> Vec<String> {
+    let root = build_tree(paths);
+    let mut lines = Vec::new();
+    if is_absolute {
+        if root.children.len() == 1 {
+            if let Some((name, child)) = root.children.iter().next() {
+                lines.push(name.clone());
+                render_tree(child, "", &mut lines);
+                return lines;
+            }
+        }
+        render_tree(&root, "", &mut lines);
+    } else {
+        lines.push(".".to_string());
+        render_tree(&root, "", &mut lines);
+    }
+    lines
+}
+
 fn main() -> io::Result<()> {
     let args = Args::parse();
 
@@ -205,8 +284,9 @@ fn main() -> io::Result<()> {
         eprintln!("Printed files: None");
     } else {
         eprintln!("Printed files:");
-        for file in printed_files {
-            eprintln!("{}", file.display());
+        let lines = tree_lines(&printed_files, is_absolute);
+        for line in lines {
+            eprintln!("{}", line);
         }
     }
 
